@@ -1,0 +1,423 @@
+create folder->code .=>-vscode
+npm i --s express express-handlebars body-parser
+npm i -g nodemon
+
+1.express = purpose- express is a fast, minimalist web framework for node.js. It provides tools to build web applications and APIs,
+Usage: To handle http requests and responses. create routes for different endpoints(eg,,get,post,put,delete), to integrate middleware for processing requests.
+
+2.express-handlebars = Purpose- Express.js template engine for rendering dynamic HTML pages using handlebars syntax.
+Usage: To serve dynamic content by combining HTML templates with JavaScript data. To create reusable components like headers , footers, etc.., using handlebars partials.
+
+3.body-parser = Purpose- Body-parser is middleware that parses incoming request bodies in a middleware before your handlers , making the request data accessible in the req.body. It is especially useful for handling POST requests.
+Usage: To parse JSON data from the request body. To parse URL - encoded data from forms.
+
+handlebars- view html data
+npm i -g nodemon = avoiding restarting the server everytime. prevents restarts manually.
+
+PART-1
+Create app.js file
+===========================
+const express = require('express');
+//const bodyParser = require('body-parser')
+const exhbs = require('express-handlebars');
+const app = express(); 
+
+//configure handlebars
+app.engine('hbs',exhbs.engine({
+    layoutsDir:'viewsFold/', defaultLayout:'maincopy',extname: 'hbs'
+}));
+
+app.set('view engine','hbs');
+app.set('views','viewsFols');
+
+//Routes
+app.get('/',(req,res)=>{
+    const msg = 'test';
+    res.render('maincopy',{msg});
+});
+
+//Start the server by specifying the port number
+app.listen(7000,()=>{
+    console.log('Listening on port 7000...');
+});
+=============================
+Execute=> nodemon app.js
+=============================
+main.hbs
+-----------
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>MONGODB CRUD</title>
+    </head>
+    <body>
+        <h1>MongoDB CRUD Example</h1>
+        <p>{{msg}}</p>
+    </body>
+</html>
+---------------------
+
+2.Create db info
+npm i mongodb(install mongodb driver) => install mongodb driver
+
+--------------------------
+db.js //Database connection
+================================================
+const mongodb = require('mongodb');
+const mongoClient = mongodb.mongoClient;
+
+let database;
+
+function myConnection(){                    //Connection string 
+    const client = mongoClient.connect('mongodb://127.0.0.1.27017');
+    database = client.db('student');
+    if(!database){
+        console.log('Database connected successfully');
+    }
+    else{
+        console.error('Database connection failed');
+        return database;
+    }
+}
+
+module.exports = {myConnection};
+=================================================
+
+PART-2
+--------------------------------------------------
+app.js
+================================================
+const express = require('express');
+//const bodyParser = require('body-parser')
+const exhbs = require('express-handlebars');
+const app = express(); 
+const dbo = require('./db');
+
+//configure handlebars
+app.engine('hbs',exhbs.engine({
+    layoutsDir:'viewsFold/', defaultLayout:'maincopy',extname: 'hbs'
+}));
+
+app.set('view engine','hbs');
+app.set('views','viewsFold');
+
+//Routes
+app.get('/', async (req,res)=>{
+    let database = await dbo.getDatabase();
+    const connection = database.collection('emp');
+    const cursor = connection.find();
+    let data = await cursor.toArray({});
+    const msg = '';
+    console.log('The data',data)
+    res.render('maincopy',{msg,data});
+});
+
+//Start the server by specifying the port number
+app.listen(7000,()=>{
+    console.log('Listening on port 7000...');
+});
+
+-----------------------------------------------
+await - to get return database (it is promise) || aysnc - to declare function that uses await
+====================================================
+main.hbs
+-------------------------------------
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>MONGODB CRUD</title>
+    </head>
+    <body>
+        <h1>MongoDB CRUD Example</h1>
+        <ul>
+            {{#each data}}
+            <li>{{this.Name}} {{this.roll}}</li>
+            {{/each}}
+        </ul>
+        <p>{{msg}}</p>
+    </body>
+</html>
+----------------------------------------
+app.js
+========================================
+const express = require('express');
+//const bodyParser = require('body-parser')
+const exhbs = require('express-handlebars');
+const app = express(); 
+const dbo = require('./db');
+
+//configure handlebars
+app.engine('hbs',exhbs.engine({
+    layoutsDir:'viewsFold/', defaultLayout:'maincopy',extname: 'hbs'
+}));
+
+app.set('view engine','hbs');
+app.set('views','viewsFold');
+
+//Routes
+app.get('/', async (req,res)=>{
+    let database = await dbo.getDatabase();
+    const connection = database.collection('emp');
+    await connection .insertOne({name:'virat',roll:18})
+    const cursor = connection.find();
+    let data = await cursor.toArray({});
+    const msg = '';
+    console.log('The data',data)
+    res.render('maincopy',{msg,data});
+});
+
+//Start the server by specifying the port number
+app.listen(7000,()=>{
+    console.log('Listening on port 7000...');
+});
+------------------------------------------------
+TypeError: Cannot read properties of undefined (reading 'eid') --- to read html data and overcome this we use bodyParser.
+---------------------------------------------------------
+app.js
+=========================================================================
+const express = require('express');
+const bodyParser = require('body-parser')
+const exhbs = require('express-handlebars');
+const app = express(); 
+const dbo = require('./db');
+
+//configure handlebars
+app.engine('hbs',exhbs.engine({
+    layoutsDir:'viewsFold/', defaultLayout:'maincopy',extname: 'hbs'
+}));
+
+app.set('view engine','hbs');
+app.set('views','viewsFold');
+app.use(bodyParser.urlencoded({extended:true}));
+
+//Routes
+app.get('/', async (req,res)=>{
+    let database = await dbo.getDatabase();
+    const connection = database.collection('emp');
+    //await connection.insertOne({empname:'virat',empid:18});
+    const cursor = connection.find();
+    let data = await cursor.toArray({});
+    let msg = '';
+    if(req.query.status === '1'){
+        msg = 'Inserted Successfully';
+    }
+    console.log('The data',data)
+    res.render('maincopy',{msg,data});
+});
+
+app.post('/empinfo', async(req,res)=>{
+    let database=await dbo.getDatabase();
+    const collection=database.collection('emp');
+    const employee={empid:req.body.eid,empname:req.body.ename};
+    await collection.insertOne(employee);
+    res.redirect('/?status=1');
+})
+
+//Start the server by specifying the port number
+app.listen(7000,()=>{
+    console.log('Listening on port 7000...');
+});
+=======================================================================================
+main.hbs
+--------------------------------------------------------
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>MONGODB CRUD</title>
+    </head>
+    <body>
+        <h1>MongoDB CRUD Example</h1>
+        <h2>Add Form</h2>
+        <Form action = '/empinfo' , method="post">
+            <label for="">Emp id</label>
+            <input type="text" name="eid">
+            <label for="">Emp name</label>
+            <input type="text" name="ename">
+            <input type="submit">
+        </Form><br><br>
+        <ul>
+            {{#each data}}
+            <li>{{this.empid}} {{this.empname}}</li>
+            {{/each}}
+        </ul>
+        <p>{{msg}}</p>
+    </body>
+</html>
+---------------------------------------------------------
+Part-3
+----------------------------------------------------------
+app.js
+=====================================================================================
+const express = require('express');
+const bodyParser = require('body-parser')
+const exhbs = require('express-handlebars');
+const app = express(); 
+const dbo = require('./db');
+const { ObjectId } = require('mongodb');
+let objId = dbo.objectId;
+//configure handlebars
+app.engine('hbs',exhbs.engine({
+    layoutsDir:'viewsFold/', defaultLayout:'maincopy',extname: 'hbs'
+}));
+
+app.set('view engine','hbs');
+app.set('views','viewsFold');
+app.use(bodyParser.urlencoded({extended:true}));
+
+//Routes
+app.get('/', async (req,res)=>{
+    let database = await dbo.getDatabase();
+    const connection = database.collection('emp');
+    //await connection.insertOne({empname:'virat',empid:18});
+    const cursor = connection.find();
+    let data = await cursor.toArray({});
+    let msg = '';
+    let edit_id=null;
+    let edit_emp=null;
+    if(req.query.edit_idd){
+        edit_id=req.query.edit_idd;
+        edit_emp=await connection.findOne({_id: new objId(edit_id)})
+    }
+    if(req.query.status === '1'){
+        msg = 'Inserted Successfully';
+    }
+    else if(req.query.statues === '2'){
+        msg = 'Updated Successfully';
+    }
+    console.log('The data',data)
+    res.render('maincopy',{msg,data,edit_id,edit_emp});
+});
+
+app.post('/empinfo', async(req,res)=>{
+    let database=await dbo.getDatabase();
+    const collection=database.collection('emp');
+    const employee={empid:req.body.eid,empname:req.body.ename};
+    await collection.insertOne(employee);
+    res.redirect('/?status=1');
+})
+
+app.post('/updateinfo/:eid',async(req,res)=>{
+    let database = await dbo.getDatabase();
+    const collection=database.collection('emp');
+    let ed_id = req.params.eid;
+    const employee={empid:req.body.eid,empname:req.body.ename};
+    await collection.updateOne({_id:new objId(ed_id)},{$set:employee});
+    res.redirect('/?status=2');
+})
+
+//Start the server by specifying the port number
+app.listen(7000,()=>{
+    console.log('Listening on port 7000...');
+});
+========================================================================================================
+db.js
+-----------------------------------------------------------------------------------------
+const mongodb = require('mongodb');
+const mongoClient = mongodb.MongoClient;
+
+let database;
+let objectId = mongodb.ObjectId;
+async function getDatabase(){                    //Connection string 
+    const client = await mongoClient.connect('mongodb://127.0.0.1:27017');
+    database = client.db('temp');
+    if(!database){
+        console.log('Database connected successfully');
+    }
+    else{
+        console.error('Database connection failed');
+        return database;
+    }
+}
+
+module.exports = {getDatabase,objectId};
+-------------------------------------------------------------------------------------------
+main.hbs
+========================================================================================================
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>MONGODB CRUD</title>
+    </head>
+    <body>
+        <h1>MongoDB CRUD Example</h1>
+        {{#if edit_id}}
+        <h2>Edit Form</h2>
+        <Form action = '/updateinfo/{{edit_id}}' , method="post">
+            <label for="">Emp id</label>
+            <input type="text" name="eid" value"{{edit_emp.empid}}">
+            <label for="">Emp name</label>
+            <input type="text" name="ename" value="{{edit_emp.empname}}">
+            <input type="submit">
+        </Form><br><br>
+        {{else}}
+        <h2>Create Form</h2>
+        <Form action = '/empinfo' , method="post">
+            <label for="">Emp id</label>
+            <input type="text" name="eid">
+            <label for="">Emp name</label>
+            <input type="text" name="ename">
+            <input type="submit">
+        </Form><br><br>
+        {{/if}}
+        <ul>
+            {{#each data}}
+            <li>{{this.empid}} {{this.empname}} <a href="/?edit_idd={{this._id}}">Edit</a></li>
+            {{/each}}
+        </ul>
+        <p>{{msg}}</p>
+    </body>
+</html>
+==========================================================================================================
+mongodb operations
+$lt: Less than
+db.products.find({ price: { $lt: 100 } })
+-----------------------------------------------
+
+$lte: Less than or equal to
+
+db.products.find({ price: { $lte: 100 } })
+
+--------------------------------------------------
+
+$gt: Greater than
+db.products.find({ price: { $gt: 100 } })
+---------------------------------------------------
+
+$gte: Greater than or equal to
+
+db.products.find({ price: { $gte: 100 } })
+-------------------------------------------------------
+
+$eq: Equal to
+db.products.find({ price: { $eq: 100 } })
+-------------------------------------------------------
+
+$ne: Not equal to
+db.products.find({ price: { $ne: 100 } })
+------------------------------------------------------
+
+between (inclusive)
+db.products.find({price:{$gte:100, $lt:200}})
+-----------------------------------------------------
+$and
+
+db.products.find({ $and:[{price:{$gte:50}},{price:{ $lte:150}}]})
+
+db.products.find({ $and:[{price:{$gte:50}},{category:"Electronics"}]})
+--------------------------------------------------------------------------------
+$or
+db.products.find({$or:[{price:{$lt:75}},{price:{$gt:150}}]})
+--------------------------------------------------------------------
+
+$nor
+db.products.find({$nor:[{price:{$lt:75}},{price:{$gt:150}}]})
+----------------------------------------------------------------------------
+
+$not
+db.products.find({price:{$not:{$gte:150}}})
+--------------------------------------------------------------------------
+
+===========================================================================================================

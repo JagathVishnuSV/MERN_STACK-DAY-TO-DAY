@@ -1,0 +1,857 @@
+create folder->code .=>-vscode
+npm i --s express express-handlebars body-parser
+npm i -g nodemon
+
+1.express = purpose- express is a fast, minimalist web framework for node.js. It provides tools to build web applications and APIs,
+Usage: To handle http requests and responses. create routes for different endpoints(eg,,get,post,put,delete), to integrate middleware for processing requests.
+
+2.express-handlebars = Purpose- Express.js template engine for rendering dynamic HTML pages using handlebars syntax.
+Usage: To serve dynamic content by combining HTML templates with JavaScript data. To create reusable components like headers , footers, etc.., using handlebars partials.
+
+3.body-parser = Purpose- Body-parser is middleware that parses incoming request bodies in a middleware before your handlers , making the request data accessible in the req.body. It is especially useful for handling POST requests.
+Usage: To parse JSON data from the request body. To parse URL - encoded data from forms.
+
+handlebars- view html data
+npm i -g nodemon = avoiding restarting the server everytime. prevents restarts manually.
+
+PART-1
+Create app.js file
+===========================
+const express = require('express');
+//const bodyParser = require('body-parser')
+const exhbs = require('express-handlebars');
+const app = express(); 
+
+//configure handlebars
+app.engine('hbs',exhbs.engine({
+    layoutsDir:'viewsFold/', defaultLayout:'maincopy',extname: 'hbs'
+}));
+
+app.set('view engine','hbs');
+app.set('views','viewsFols');
+
+//Routes
+app.get('/',(req,res)=>{
+    const msg = 'test';
+    res.render('maincopy',{msg});
+});
+
+//Start the server by specifying the port number
+app.listen(7000,()=>{
+    console.log('Listening on port 7000...');
+});
+=============================
+Execute=> nodemon app.js
+=============================
+main.hbs
+-----------
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>MONGODB CRUD</title>
+    </head>
+    <body>
+        <h1>MongoDB CRUD Example</h1>
+        <p>{{msg}}</p>
+    </body>
+</html>
+---------------------
+
+2.Create db info
+npm i mongodb(install mongodb driver) => install mongodb driver
+
+--------------------------
+db.js //Database connection
+================================================
+const mongodb = require('mongodb');
+const mongoClient = mongodb.mongoClient;
+
+let database;
+
+function myConnection(){                    //Connection string 
+    const client = mongoClient.connect('mongodb://127.0.0.1.27017');
+    database = client.db('student');
+    if(!database){
+        console.log('Database connected successfully');
+    }
+    else{
+        console.error('Database connection failed');
+        return database;
+    }
+}
+
+module.exports = {myConnection};
+=================================================
+
+PART-2
+--------------------------------------------------
+app.js
+================================================
+const express = require('express');
+//const bodyParser = require('body-parser')
+const exhbs = require('express-handlebars');
+const app = express(); 
+const dbo = require('./db');
+
+//configure handlebars
+app.engine('hbs',exhbs.engine({
+    layoutsDir:'viewsFold/', defaultLayout:'maincopy',extname: 'hbs'
+}));
+
+app.set('view engine','hbs');
+app.set('views','viewsFold');
+
+//Routes
+app.get('/', async (req,res)=>{
+    let database = await dbo.getDatabase();
+    const connection = database.collection('emp');
+    const cursor = connection.find();
+    let data = await cursor.toArray({});
+    const msg = '';
+    console.log('The data',data)
+    res.render('maincopy',{msg,data});
+});
+
+//Start the server by specifying the port number
+app.listen(7000,()=>{
+    console.log('Listening on port 7000...');
+});
+
+-----------------------------------------------
+await - to get return database (it is promise) || aysnc - to declare function that uses await
+====================================================
+main.hbs
+-------------------------------------
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>MONGODB CRUD</title>
+    </head>
+    <body>
+        <h1>MongoDB CRUD Example</h1>
+        <ul>
+            {{#each data}}
+            <li>{{this.Name}} {{this.roll}}</li>
+            {{/each}}
+        </ul>
+        <p>{{msg}}</p>
+    </body>
+</html>
+----------------------------------------
+app.js
+========================================
+const express = require('express');
+//const bodyParser = require('body-parser')
+const exhbs = require('express-handlebars');
+const app = express(); 
+const dbo = require('./db');
+
+//configure handlebars
+app.engine('hbs',exhbs.engine({
+    layoutsDir:'viewsFold/', defaultLayout:'maincopy',extname: 'hbs'
+}));
+
+app.set('view engine','hbs');
+app.set('views','viewsFold');
+
+//Routes
+app.get('/', async (req,res)=>{
+    let database = await dbo.getDatabase();
+    const connection = database.collection('emp');
+    await connection .insertOne({name:'virat',roll:18})
+    const cursor = connection.find();
+    let data = await cursor.toArray({});
+    const msg = '';
+    console.log('The data',data)
+    res.render('maincopy',{msg,data});
+});
+
+//Start the server by specifying the port number
+app.listen(7000,()=>{
+    console.log('Listening on port 7000...');
+});
+------------------------------------------------
+TypeError: Cannot read properties of undefined (reading 'eid') --- to read html data and overcome this we use bodyParser.
+---------------------------------------------------------
+app.js
+=========================================================================
+const express = require('express');
+const bodyParser = require('body-parser')
+const exhbs = require('express-handlebars');
+const app = express(); 
+const dbo = require('./db');
+
+//configure handlebars
+app.engine('hbs',exhbs.engine({
+    layoutsDir:'viewsFold/', defaultLayout:'maincopy',extname: 'hbs'
+}));
+
+app.set('view engine','hbs');
+app.set('views','viewsFold');
+app.use(bodyParser.urlencoded({extended:true}));
+
+//Routes
+app.get('/', async (req,res)=>{
+    let database = await dbo.getDatabase();
+    const connection = database.collection('emp');
+    //await connection.insertOne({empname:'virat',empid:18});
+    const cursor = connection.find();
+    let data = await cursor.toArray({});
+    let msg = '';
+    if(req.query.status === '1'){
+        msg = 'Inserted Successfully';
+    }
+    console.log('The data',data)
+    res.render('maincopy',{msg,data});
+});
+
+app.post('/empinfo', async(req,res)=>{
+    let database=await dbo.getDatabase();
+    const collection=database.collection('emp');
+    const employee={empid:req.body.eid,empname:req.body.ename};
+    await collection.insertOne(employee);
+    res.redirect('/?status=1');
+})
+
+//Start the server by specifying the port number
+app.listen(7000,()=>{
+    console.log('Listening on port 7000...');
+});
+=======================================================================================
+main.hbs
+--------------------------------------------------------
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>MONGODB CRUD</title>
+    </head>
+    <body>
+        <h1>MongoDB CRUD Example</h1>
+        <h2>Add Form</h2>
+        <Form action = '/empinfo' , method="post">
+            <label for="">Emp id</label>
+            <input type="text" name="eid">
+            <label for="">Emp name</label>
+            <input type="text" name="ename">
+            <input type="submit">
+        </Form><br><br>
+        <ul>
+            {{#each data}}
+            <li>{{this.empid}} {{this.empname}}</li>
+            {{/each}}
+        </ul>
+        <p>{{msg}}</p>
+    </body>
+</html>
+---------------------------------------------------------
+Part-3
+----------------------------------------------------------
+app.js
+=====================================================================================
+const express = require('express');
+const bodyParser = require('body-parser')
+const exhbs = require('express-handlebars');
+const app = express(); 
+const dbo = require('./db');
+const { ObjectId } = require('mongodb');
+let objId = dbo.objectId;
+//configure handlebars
+app.engine('hbs',exhbs.engine({
+    layoutsDir:'viewsFold/', defaultLayout:'maincopy',extname: 'hbs'
+}));
+
+app.set('view engine','hbs');
+app.set('views','viewsFold');
+app.use(bodyParser.urlencoded({extended:true}));
+
+//Routes
+app.get('/', async (req,res)=>{
+    let database = await dbo.getDatabase();
+    const connection = database.collection('emp');
+    //await connection.insertOne({empname:'virat',empid:18});
+    const cursor = connection.find();
+    let data = await cursor.toArray({});
+    let msg = '';
+    let edit_id=null;
+    let edit_emp=null;
+    if(req.query.edit_idd){
+        edit_id=req.query.edit_idd;
+        edit_emp=await connection.findOne({_id: new objId(edit_id)})
+    }
+    if(req.query.status === '1'){
+        msg = 'Inserted Successfully';
+    }
+    else if(req.query.statues === '2'){
+        msg = 'Updated Successfully';
+    }
+    console.log('The data',data)
+    res.render('maincopy',{msg,data,edit_id,edit_emp});
+});
+
+app.post('/empinfo', async(req,res)=>{
+    let database=await dbo.getDatabase();
+    const collection=database.collection('emp');
+    const employee={empid:req.body.eid,empname:req.body.ename};
+    await collection.insertOne(employee);
+    res.redirect('/?status=1');
+})
+
+app.post('/updateinfo/:eid',async(req,res)=>{
+    let database = await dbo.getDatabase();
+    const collection=database.collection('emp');
+    let ed_id = req.params.eid;
+    const employee={empid:req.body.eid,empname:req.body.ename};
+    await collection.updateOne({_id:new objId(ed_id)},{$set:employee});
+    res.redirect('/?status=2');
+})
+
+//Start the server by specifying the port number
+app.listen(7000,()=>{
+    console.log('Listening on port 7000...');
+});
+========================================================================================================
+db.js
+-----------------------------------------------------------------------------------------
+const mongodb = require('mongodb');
+const mongoClient = mongodb.MongoClient;
+
+let database;
+let objectId = mongodb.ObjectId;
+async function getDatabase(){                    //Connection string 
+    const client = await mongoClient.connect('mongodb://127.0.0.1:27017');
+    database = client.db('temp');
+    if(!database){
+        console.log('Database connected successfully');
+    }
+    else{
+        console.error('Database connection failed');
+        return database;
+    }
+}
+
+module.exports = {getDatabase,objectId};
+-------------------------------------------------------------------------------------------
+main.hbs
+========================================================================================================
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>MONGODB CRUD</title>
+    </head>
+    <body>
+        <h1>MongoDB CRUD Example</h1>
+        {{#if edit_id}}
+        <h2>Edit Form</h2>
+        <Form action = '/updateinfo/{{edit_id}}' , method="post">
+            <label for="">Emp id</label>
+            <input type="text" name="eid" value"{{edit_emp.empid}}">
+            <label for="">Emp name</label>
+            <input type="text" name="ename" value="{{edit_emp.empname}}">
+            <input type="submit">
+        </Form><br><br>
+        {{else}}
+        <h2>Create Form</h2>
+        <Form action = '/empinfo' , method="post">
+            <label for="">Emp id</label>
+            <input type="text" name="eid">
+            <label for="">Emp name</label>
+            <input type="text" name="ename">
+            <input type="submit">
+        </Form><br><br>
+        {{/if}}
+        <ul>
+            {{#each data}}
+            <li>{{this.empid}} {{this.empname}} <a href="/?edit_idd={{this._id}}">Edit</a></li>
+            {{/each}}
+        </ul>
+        <p>{{msg}}</p>
+    </body>
+</html>
+==========================================================================================================
+mongodb operations
+$lt: Less than
+db.products.find({ price: { $lt: 100 } })
+-----------------------------------------------
+
+$lte: Less than or equal to
+
+db.products.find({ price: { $lte: 100 } })
+
+--------------------------------------------------
+
+$gt: Greater than
+db.products.find({ price: { $gt: 100 } })
+---------------------------------------------------
+
+$gte: Greater than or equal to
+
+db.products.find({ price: { $gte: 100 } })
+-------------------------------------------------------
+
+$eq: Equal to
+db.products.find({ price: { $eq: 100 } })
+-------------------------------------------------------
+
+$ne: Not equal to
+db.products.find({ price: { $ne: 100 } })
+------------------------------------------------------
+
+between (inclusive)
+db.products.find({price:{$gte:100, $lt:200}})
+-----------------------------------------------------
+$and
+
+db.products.find({ $and:[{price:{$gte:50}},{price:{ $lte:150}}]})
+
+db.products.find({ $and:[{price:{$gte:50}},{category:"Electronics"}]})
+--------------------------------------------------------------------------------
+$or
+db.products.find({$or:[{price:{$lt:75}},{price:{$gt:150}}]})
+--------------------------------------------------------------------
+
+$nor
+db.products.find({$nor:[{price:{$lt:75}},{price:{$gt:150}}]})
+----------------------------------------------------------------------------
+
+$not
+db.products.find({price:{$not:{$gte:150}}})
+--------------------------------------------------------------------------
+
+===========================================================================================================
+db.emp.find({},{name:1})
+
+db.emp.find({},{name:1,_id:0})
+
+db.emp.find({},{'details:position':1,'details.salary':1})
+---------------------------------------------------------------------
+limit -until certain no of records
+db.emp.find({}).limit(4)
+
+------------------------------------------------------------------------
+skips records to a certain number eg - 3 means skipping first 3 records
+db.emp.find({}).skip(4)
+----------------------------------------------------------------------------
+
+Sort
+db.emp.find({}).sort({'details.salary':1})
+================================================================================================================
+
+MONGOOSE
+
+npm i mongoose
+--------------------------------------------------
+db.js
+--------------------------------------
+const mongse=require('mongoose')
+let database;
+
+async function getDatabase(){
+    mongse.connect('mongodb://127.0.0.1:27017/temp').then(()=>{
+        console.log("db connected...")
+    })
+    .catch(()=>{
+        console.log('db error...')
+    })
+}
+module.exports = {getDatabase};
+--------------------------------------------------------------------------
+app.js
+===================================================================
+const express = require('express');
+const bodyParser = require('body-parser')
+const exhbs = require('express-handlebars');
+const app = express(); 
+const dbo = require('./db');
+const { ObjectId } = require('mongodb');
+const empModel = require('./models/empModel')
+//let objId = dbo.objectId;
+//configure handlebars
+dbo.getDatabase()
+app.engine('hbs',exhbs.engine({
+    layoutsDir:'viewsFold/', defaultLayout:'maincopy',extname: 'hbs'
+}));
+
+app.set('view engine','hbs');
+app.set('views','viewsFold');
+app.use(bodyParser.urlencoded({extended:true}));
+
+//Routes
+app.get('/', async (req,res)=>{
+    //let database = await dbo.getDatabase();
+    //const connection = database.collection('emp');
+    //await connection.insertOne({empname:'virat',empid:18});
+    //const cursor = connection.find();
+    //let data = await cursor.toArray({});
+    let msg = '';
+    let edit_id=null,delete_id=null;
+    let edit_emp=null;
+    let data=null;
+    if(req.query.edit_idd){
+        edit_id=req.query.edit_idd;
+        edit_emp=await connection.findOne({_id: new objId(edit_id)})
+    }
+    if(req.query.delete_idd){
+        delete_id=req.query.delete_idd;
+        await connection.deleteOne({_id:new objId(delete_id)})
+        res.redirect('/?status=3')
+    }
+    if(req.query.status === '1'){
+        msg = 'Inserted Successfully';
+    }
+    else if(req.query.statues === '2'){
+        msg = 'Updated Successfully';
+    }
+    else if(req.query.status === '3'){
+        msg = 'Deleted Successfully';
+    }
+    //console.log('The data',data)
+    res.render('maincopy',{msg,data,edit_id,edit_emp,delete_id});
+});
+
+app.post('/empinfo', async(req,res)=>{
+    //let database=await dbo.getDatabase();
+    // const collection=database.collection('emp');
+    const employee={empid:req.body.eid,empname:req.body.ename};
+    //await collection.insertOne(employee);
+    const newEmpDoc = new empModel(employee);
+    newEmpDoc.save()
+    res.redirect('/?status=1');
+})
+
+app.post('/updateinfo/:eid',async(req,res)=>{
+    let database = await dbo.getDatabase();
+    const collection=database.collection('emp');
+    let ed_id = req.params.eid;
+    const employee={empid:req.body.eid,empname:req.body.ename};
+    await collection.updateOne({_id:new objId(ed_id)},{$set:employee});
+    res.redirect('/?status=2');
+})
+
+
+//Start the server by specifying the port number
+app.listen(7000,()=>{
+    console.log('Listening on port 7000...');
+});
+===========================================================================
+empModel.js
+-----------------------------------------------------------------
+const mongose=require('mongoose')
+const empSchema = new mongose.Schema({
+    empid:Number,
+    empname: String
+})
+
+const empmdl = mongose.model('employeeModel',empSchema)
+module.exports=empmdl
+
+------------------------------------------------------------------
+App.js
+------------------------------------------------------------------
+const express = require('express');
+const bodyParser = require('body-parser')
+const exhbs = require('express-handlebars');
+const app = express(); 
+const dbo = require('./db');
+const { ObjectId } = require('mongodb');
+const empModel = require('./models/empModel')
+//let objId = dbo.objectId;
+//configure handlebars
+dbo.getDatabase()
+app.engine('hbs',exhbs.engine({
+    layoutsDir:'viewsFold/', defaultLayout:'maincopy',extname: 'hbs',
+    runtimeOptions:{
+        allowProtoPropertiesByDefault:true,
+        allowProtoMethodsByDefault:true
+    }
+}));
+
+app.set('view engine','hbs');
+app.set('views','viewsFold');
+app.use(bodyParser.urlencoded({extended:true}));
+
+//Routes
+app.get('/', async (req,res)=>{
+    //let database = await dbo.getDatabase();
+    //const connection = database.collection('emp');
+    //await connection.insertOne({empname:'virat',empid:18});
+    //const cursor = connection.find();
+    //let data = await cursor.toArray({});
+    let msg = '';
+    let edit_id=null,delete_id=null;
+    let edit_emp=null;
+    let data=await empModel.find({})
+    if(req.query.edit_idd){
+        edit_id=req.query.edit_idd;
+        //edit_emp=await connection.findOne({_id: new objId(edit_id)})
+        edit_emp = await empModel.findOne({_id:edit_id})
+    }
+    if(req.query.delete_idd){
+        delete_id=req.query.delete_idd;
+        //await connection.deleteOne({_id:new objId(delete_id)})
+        await empModel.deleteOne({_id:delete_id})
+        res.redirect('/?status=3')
+    }
+    if(req.query.status === '1'){
+        msg = 'Inserted Successfully';
+    }
+    else if(req.query.statues === '2'){
+        msg = 'Updated Successfully';
+    }
+    else if(req.query.status === '3'){
+        msg = 'Deleted Successfully';
+    }
+    //console.log('The data',data)
+    res.render('maincopy',{msg,data,edit_id,edit_emp,delete_id});
+});
+
+app.post('/empinfo', async(req,res)=>{
+    //let database=await dbo.getDatabase();
+    // const collection=database.collection('emp');
+    const employee={empid:req.body.eid,empname:req.body.ename};
+    //await collection.insertOne(employee);
+    const newEmpDoc = new empModel(employee);
+    newEmpDoc.save()
+    res.redirect('/?status=1');
+})
+
+app.post('/updateinfo/:eid',async(req,res)=>{
+    //let database = await dbo.getDatabase();
+    //const collection=database.collection('emp');
+    let ed_id = req.params.eid;
+    const employee={empid:req.body.eid,empname:req.body.ename};
+    //await collection.updateOne({_id:new objId(ed_id)},{$set:employee});
+    await empModel.findOneAndUpdate({_id:ed_id},employee)
+    res.redirect('/?status=2');
+})
+
+app.listen(7000,()=>{
+    console.log('Listening on port 7000...');
+});
+----------------------------------------------------------------------------------
+main.js
+--------------------------------------------------------------------------
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>MONGODB CRUD</title>
+    </head>
+    <body>
+        <h1>MongoDB CRUD Example</h1>
+        {{#if edit_id}}
+        <h2>Edit Form</h2>
+        <Form action = '/updateinfo/{{edit_id}}' , method="post">
+            <label for="">Emp id</label>
+            <input type="text" name="eid" value"{{edit_emp.empid}}">
+            <label for="">Emp name</label>
+            <input type="text" name="ename" value="{{edit_emp.empname}}">
+            <input type="submit">
+        </Form><br><br>
+        {{else}}
+        <h2>Create Form</h2>
+        <Form action = '/empinfo' , method="post">
+            <label for="">Emp id</label>
+            <input type="text" name="eid">
+            <label for="">Emp name</label>
+            <input type="text" name="ename">
+            <input type="submit">
+        </Form><br><br>
+        {{/if}}
+        <ul>
+            {{#each data}}
+            <li>{{this.empid}} {{this.empname}} <a href="/?edit_idd={{this._id}}">Edit</a> | 
+            <a href="/?delete_idd={{this._id}}" onclick="return confirm('Are You Sure To Delete?')">Delete</a></li>
+            {{/each}}
+        </ul>
+        <p>{{msg}}</p>
+    </body>
+</html>
+-----------------------------------------------------------------------------------------------------------------------
+===================================================================
+Rest API
+==================================================================
+npm i --s express express-handlebars body-parser
+npm i -g nodemon
+ npm i dotenv - handles configuration works 
+------------------------------------------------------------------------
+.env - environment file
+-------------------------------------------------
+#MONGO_URI=mongodb://localhost:27017/mern_db
+MONGO_URI=mongodb://127.0.0.1:27017/mern_db
+
+#127.0.0.1.27017
+PORT = 5000
+==================================================================
+/Models/EmpModels.js
+----------------------
+const mongoose = require('mongoose');
+
+const employeeSchema = new mongoose.Schema({
+    empid:Number,
+    empname:String 
+})
+
+module.exports = mongoose.model('EmpModel',employeeSchema);
+-----------------------------------------------------------------------------------
+/controllers/Empcontrollers.js
+---------------------------------------------------------------
+const Employee = require('../models/EmpModel')
+
+exports.createEmployee = async (req,res)=>{
+    try{
+        const {empid,empname} = req.body;
+        const newEmployee = new Employee({empid,empname});
+        const savedEmp = await newEmployee.save();
+        res.status(201).json(savedEmp);
+    }
+    catch(err){
+        res.status(500).json({error : err.message});
+    }
+}
+-----------------------------------------------------------------------------
+/routes/Employee.js
+------------------------------------------------------------------
+const express =require('express')
+const {createEmployee}=require('../controllers/EmpController')
+
+router.post('/',createEmployee)
+const router = express.router()
+module.exports = router
+==========================================================================================
+config/db.js
+-----------------------------------------
+const mongoose = require('mongoose');
+const connectDB = async()=>{
+    try{
+        const conn = await mongoose.connect(process.env.MONGO_URI)
+        console.log(`MongoDB connected: ${conn.connection.host}`);
+    }
+    catch(err){
+        console.log(`Error: ${err.message}`);
+        process.exit(1);
+    }
+}
+module.exports = connectDB;
+---------------------------------------------------
+Server.js
+-----------------------------------------------------------------------------------
+const express = require('express')
+const bodyParse = require('body-parser')
+const dotenv = require('dotenv')
+const connectDB = require('./backend/configs/db')
+
+const employeeRoutes = require('./backend/routes/Employee')
+dotenv.config()
+
+connectDB();
+const app = express()
+app.use(bodyParse.json());
+app.use('/api/employees',employeeRoutes)
+
+const PORT = process.env.PORT || 7000 || 8000;
+app.listen(PORT , ()=> console.log(`Server running on port ${PORT}`));
+------------------------------------------------------------------------------------------
+===========================================================================================================================
+/controllers/Empcontrollers
+-----------------------------------------------------------------------------
+const Employee = require('../models/EmpModel')
+
+exports.createEmployee = async (req,res)=>{
+    try{
+        const {empid,empname} = req.body;
+        const newEmployee = new Employee({empid,empname});
+        const savedEmp = await newEmployee.save();
+        res.status(201).json(savedEmp);
+    }
+    catch(err){
+        res.status(500).json({error : err.message});
+    }
+}
+
+exports.getEmployees = async (req,res)=>{
+    try{
+        const employees = await Employee.find({})
+        res.status(200).json(employees);
+    }
+    catch(err){
+        res.status(500).json({error : err.message})
+    }
+}
+
+exports.editEmployees = async (req,res)=>{
+    try{
+        const e_id = req.params.id;
+        const {empid,empname}=req.body;
+        const updatedEmployee = await Employee.findByIdAndUpdate(e_id,{empid,empname},{new:true})
+        if(!updatedEmployee){
+            return res.status(404).json({message : 'Employee not found'})
+        }
+        res.status(200).json(updatedEmployee);
+    }
+    catch(err){
+        res.status(500).json({error : err.message})
+    }
+}
+    
+exports.deleteEmployees = async (req,res)=>{
+    try{
+        const delete_id = req.params.id;
+        const deleteEmployees = await Employee.findByIdAndDelete({_id:delete_id})
+        if(!deleteEmployees){
+            return res.status(404).json({message : 'Employee not found'})
+        }
+        res.status(203).json({message : 'Deleted Successfully'})
+    }
+    catch(err){
+        res.status(500).json({error : err.message})
+    }
+}
+-------------------------------------------------------------------------------------------------------------
+/routes/Employee
+---------------------------------------------------------------------------------------
+const express =require('express')
+const {createEmployee, getEmployees, deleteEmployees, editEmployees}=require('../controllers/EmpController')
+const router = express.Router()
+
+
+router.post('/',createEmployee)
+router.get('/',getEmployees)
+router.put('/:id',editEmployees)
+router.delete('/:id',deleteEmployees)
+module.exports = router
+------------------------------------------------------
+npm install cors -- used for connecting with frontend
+npm install axios
+---------------------------------------------------------------
+---------------------------
+FRONTEND
+=-------------------------------------------
+src - /api folder    --- employeeApi.js
+      /components folder --- employeeList.js,editEmployee.js
+--------------------------------------------------------------
+app.js
+=======================================
+import React from 'react'
+import {BrowserRouter,Link,Route,Routes} from 'react-router-dom'
+import EmployeeList from './components/employeeList'
+
+function App(){
+  return(
+    <BrowserRouter>
+      <ul>
+        <li>
+          <Link to='/add'>Add Employee</Link>
+        </li>
+      </ul>
+      <Routes>
+        <Route path='/add' element={<EmployeeList/>}/>
+      </Routes>
+    </BrowserRouter>
+    
+  )
+}
+=================================================
+
